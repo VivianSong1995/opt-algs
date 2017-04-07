@@ -174,19 +174,20 @@ H01 = diag(tmp_diag);
 H02 = sparse(diag(inv_diag));
 H03 = sparse(diag(inv_diag)) + 1e-3*speye(p);
 H04 = sparse(diag(inv_diag)) + speye(p);
+H05 = eye(p);
 
 [ yh30, w30 ] = bfgs(x0, myfunc, mygrad, H01, 1e-4, 200, true, false,true); 
 %[ yh31, w31 ] = bfgs(x0, myfunc, mygrad, H02, 1e-3, 200, true, false, true); % X - gets stuck in line search
 [ yh32, w32 ] = bfgs(x0, myfunc, mygrad, H03, 1e-4, 200, true, false, true); % works best, inv. diag. + small I
 [ yh33, w33 ] = bfgs(x0, myfunc, mygrad, H04, 1e-4, 200, true, false, true); % inverse diagonal + I
-[ yh34, w34 ] = bfgs(x0, myfunc, mygrad, speye(p), 1e-4, 200, true, false, true); % identity
+[ yh34, w34 ] = bfgs(x0, myfunc, mygrad, H05, 1e-4, 200, true, false, true); % identity
 
 % These juse use backtracking as opposed to Strong Wolfe (faster iterations)
 [ yh35, w35 ] = bfgs(x0, myfunc, mygrad, H01, 1e-4, 200, false, true, true); % 
 % [ yh36, w36 ] = bfgs(x0, myfunc, mygrad, H02, 1e-3, 200, false, true, true); % fails
 [ yh37, w37 ] = bfgs(x0, myfunc, mygrad, H03, 1e-4, 200, false, true, true); % does worse than stronge wolfe but faster iters 
 [ yh38, w38 ] = bfgs(x0, myfunc, mygrad, H04, 1e-4, 200, false, true, true); % was 
-[ yh39, w39 ] = bfgs(x0, myfunc, mygrad, speye(p), 1e-4, 200,false, true, true); % was 
+[ yh39, w39 ] = bfgs(x0, myfunc, mygrad, H05, 1e-4, 200,false, true, true); % was 
 
 l30 = 1:length(yh30); l32 = 1:length(yh32); l33 = 1:length(yh33); l34 = 1:length(yh34);
 l35 = 1:length(yh35); l37 = 1:length(yh37); l38 = 1:length(yh38); l39 = 1:length(yh39);
@@ -202,9 +203,17 @@ legend('SW-Diag', 'SW-RegInvDiag','SW-InvDiag','SW-Id', ...
 %% sr1-trust
 tmp_diag2 = diag(XTrain'*XTrain);
 B01 = diag(tmp_diag2) + 1e-3*speye(p);
+B02 = eye(p);
 [ yh40, w40 ] = sr1Trust(x0, B01, myfunc, mygrad, 2, 1e-4, 200, false, true); 
-[ yh41, w41 ] = sr1Trust(x0, speye(p), myfunc, mygrad, 2, 1e-4, 200, false, true); 
+[ yh41, w41 ] = sr1Trust(x0, B02, myfunc, mygrad, 2, 1e-4, 200, false, true); 
 % fast iterations!!!
+
+l40 = 1:length(yh40); l41 = 1:length(yh41); 
+
+f5 = figure;
+figure(f5);
+semilogy(l40,err(yh40),  l41,err(yh41)); 
+legend('SR1-RegDiag', 'SR1-Id')
 
 %% bfgsTrust
 %B01 = inv(H01);
@@ -212,20 +221,56 @@ B03 = inv(H03); % had worked best before, so we'll stick with that.
 %B04 = inv(H04);
 
 % Cauchy
-[ yh50, w50 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 1, true, true); %breaks
-[ yh51, w51 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 2, true, true); %pos definiteness not guaranteed
-[ yh52, w52 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 3, true, true); %solid
+% all same
+[ yh50, w50 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 1, false, true);
+%[ yh51, w51 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 2, true, true);
+%[ yh52, w52 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 3, true, true);
 
 % Dogleg
-[ yh53, w53 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 1, true, true); 
-[ yh54, w54 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 2, true, true);
-[ yh55, w55 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 3, true, true);
+[ yh53, w53 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 1, false, true); 
+%[ yh54, w54 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 2, true, true);
+%[ yh55, w55 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 3, true, true);
 
-% 2D Subspace Min
-[ yh56, w56 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 1, true, true); 
-[ yh57, w57 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 2, true, true);
-[ yh58, w58 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 3, true, true);
+% 2D Subspace Min - same as dogleg
+%[ yh56, w56 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 1, false, true); 
+%[ yh57, w57 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 2, true, true);
+%[ yh58, w58 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 3, true, true);
 
 % Skip More-Sorensen (positive definiteness constraints)
 
+l50 = 1:length(yh50); l53 = 1:length(yh53); % l56 = 1:length(yh56); 
+
+f6 = figure;
+figure(f6);
+semilogy(l50,err(yh50), l53,err(yh53))%, l56,err(yh56)); 
+legend('bfgsTrust-Chy', 'bfgsTrust-Dog')
+
+%% LBFGS
+% H01 = diag(tmp_diag);
+% H03 = sparse(diag(inv_diag)) + 1e-3*speye(p);
+% H04 = sparse(diag(inv_diag)) + speye(p);
+
+[ yh60, w60 ] = lbfgs(x0, 05, myfunc, mygrad, H03, 1e-4, 200, true, true, true);
+[ yh61, w61 ] = lbfgs(x0, 10, myfunc, mygrad, H03, 1e-4, 200, true, true, true);
+[ yh62, w62 ] = lbfgs(x0, 15, myfunc, mygrad, H03, 1e-4, 200, true, true, true);
+
+[ yh65, w65 ] = lbfgs(x0, 10, myfunc, mygrad, H01, 1e-4, 40, true, true, true);
+[ yh66, w66 ] = lbfgs(x0, 10, myfunc, mygrad, H03, 1e-4, 40, true, true, true);
+[ yh67, w67 ] = lbfgs(x0, 10, myfunc, mygrad, H04, 1e-4, 200, true, true, true);
+[ yh68, w68 ] = lbfgs(x0, 10, myfunc, mygrad, H05, 1e-4, 40, true, true, true);
+
+
+l60 = 1:length(yh60); l61 = 1:length(yh61); l62 = 1:length(yh62);
+l65 = 1:length(yh65); l66 = 1:length(yh66); l67 = 1:length(yh67); l68 = 1:length(yh68);
+
+f7 = figure;
+figure(f7);
+h = semilogy(l60,err(yh60),'-og',  l61,err(yh61),'-ok',  l62,err(yh62),'-or',  ...
+         l65,err(yh65),'--*b', l66,err(yh66),'-*m',  l67,err(yh67),'--*g', l68,err(yh68),'--*c'); 
+set(h(1),'linewidth',6);
+set(h(2),'linewidth',4);
+set(h(2),'linewidth',2);
+
+legend('lbfgs-5', 'lbfgs-10','lbfgs-15', ...
+       'lbfgs-Diag', 'BT-RegInvDiag','BT-InvDiag+Id','BT-Id')
 
