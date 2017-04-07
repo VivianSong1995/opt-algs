@@ -55,8 +55,8 @@ myhessdiag = @(w) diag(diag(myhess(w),0));
 x0 = zeros(p,1);
 
 % Baseline
-[ ~, xs11 ] = newton_method_updt(x0, myhess, mygrad, myfunc, 140, 1e-4, false, true); % best!
-opt_val = myfunc(xs11) ;
+[ yh17, w17 ] = newton_method_updt(x0, myhess, mygrad, myfunc, 140, 1e-4, false, true); % best!
+opt_val = myfunc(w17) ;
 err = @(x) x - opt_val ;
 
 %% Gradient Method - Step Size Comparison
@@ -78,6 +78,8 @@ l1 = 1:length(yh1); l2 = 1:length(yh2); l3 = 1:length(yh3);
 l4 = 1:length(yh4); l5 = 1:length(yh5);
 
 % Plot algorithm performance
+f1 = figure;
+figure(f1);
 semilogy(l1,err(yh1), l2,err(yh2), l3,err(yh3), l4,err(yh4), l5,err(yh5));
 legend('1e-3','k^{-1}','k^{-1/2}','k^{-2}','5e-3')
 xlim([0 100])
@@ -102,6 +104,8 @@ numSteps = 3e3;
 [ yh11, w11 ] = stochasticGradientDescent(x0, XTrain, yTrain, 32, myfunc, mygX, step6, numSteps, 1e-4, true); % no
 
 st6 = 1:numSteps;
+f2 = figure;
+figure(f2);
 semilogy(st6,err(yh6), st6,err(yh7), st6,err(yh8), st6,err(yh9),st6,err(yh10), st6,err(yh11) ); 
 ylim([0 3e-3])
 legend('1e-3','k^{-1}','k^{-1/2}','k^{-2}','5e-5','1/(k+1e5)')
@@ -132,5 +136,96 @@ l15 = 1:length(yh15); l16 = 1:length(yh16);
 
 % Newton Method with BT Line Search and default BT parameters
 % Overall the standard !
-[ it11, xs11 ] = newton_method_updt(x0, myhess, mygrad, myfunc, 140, 1e-4, false, true); % best!
+%[ yh17, w17 ] = newton_method_updt(x0, myhess, mygrad, myfunc, 140, 1e-4, false, true); % best!
+
+%% Trust Region
+% Cauchy
+[ yh18, w18 ] = trustRegion(x0, myfunc, mygrad, myhess, 1, 1e-4, 160, false, true); % okay
+
+% Dogleg
+[ yh19, w19 ] = trustRegion(x0, myfunc, mygrad, myhess, 2, 1e-4, 140, false, true); % amazing!
+[ yh20, w20 ] = trustRegion(x0, myfunc, mygrad, myhessdiag, 2, 1e-4, 140, false, true); % slower
+
+%  More-Sorensen (iterative)
+% fails if you start at 0
+[ yh21, w21 ] = trustRegion(x0+1, myfunc, mygrad, myhess, 4, 1e-4, 140, false, true); % much slower
+
+% Two-Dimensional Subspace Minimization
+[ yh22, w22 ] = trustRegion(x0, myfunc, mygrad, myhess, 3, 1e-4, 60, false, true); % awesome!
+[ yh23, w23 ] = trustRegion(x0, myfunc, mygrad, myhessdiag, 3, 1e-4, 100, false, true); % slower
+
+
+l18 = 1:length(yh18); l19 = 1:length(yh19); l20 = 1:length(yh20); 
+l21 = 1:length(yh21); l22 = 1:length(yh22); l23 = 1:length(yh23); 
+
+f3 = figure;
+figure(f3);
+semilogy(l18,err(yh18), l19,err(yh19), l20,err(yh20), l21,err(yh21), ...
+         l22,err(yh22), l23,err(yh23)); 
+legend('Cauchy','Dog-FullH','Dog-DiagH','More-Sor','2DSS-FullH','2DSS-DiagH')
+% 2D Subspace converged in 1 step.
+
+
+%% BFGS
+tmp_diag = diag(XTrain'*XTrain);
+tmp_diag(tmp_diag==0) = 1;
+inv_diag = round(1./tmp_diag,4);
+H01 = diag(tmp_diag);
+H02 = sparse(diag(inv_diag));
+H03 = sparse(diag(inv_diag)) + 1e-3*speye(p);
+H04 = sparse(diag(inv_diag)) + speye(p);
+
+[ yh30, w30 ] = bfgs(x0, myfunc, mygrad, H01, 1e-4, 200, true, false,true); 
+%[ yh31, w31 ] = bfgs(x0, myfunc, mygrad, H02, 1e-3, 200, true, false, true); % X - gets stuck in line search
+[ yh32, w32 ] = bfgs(x0, myfunc, mygrad, H03, 1e-4, 200, true, false, true); % works best, inv. diag. + small I
+[ yh33, w33 ] = bfgs(x0, myfunc, mygrad, H04, 1e-4, 200, true, false, true); % inverse diagonal + I
+[ yh34, w34 ] = bfgs(x0, myfunc, mygrad, speye(p), 1e-4, 200, true, false, true); % identity
+
+% These juse use backtracking as opposed to Strong Wolfe (faster iterations)
+[ yh35, w35 ] = bfgs(x0, myfunc, mygrad, H01, 1e-4, 200, false, true, true); % 
+% [ yh36, w36 ] = bfgs(x0, myfunc, mygrad, H02, 1e-3, 200, false, true, true); % fails
+[ yh37, w37 ] = bfgs(x0, myfunc, mygrad, H03, 1e-4, 200, false, true, true); % does worse than stronge wolfe but faster iters 
+[ yh38, w38 ] = bfgs(x0, myfunc, mygrad, H04, 1e-4, 200, false, true, true); % was 
+[ yh39, w39 ] = bfgs(x0, myfunc, mygrad, speye(p), 1e-4, 200,false, true, true); % was 
+
+l30 = 1:length(yh30); l32 = 1:length(yh32); l33 = 1:length(yh33); l34 = 1:length(yh34);
+l35 = 1:length(yh35); l37 = 1:length(yh37); l38 = 1:length(yh38); l39 = 1:length(yh39);
+
+f4 = figure;
+figure(f4);
+semilogy(l30,err(yh30),'-+k',  l32,err(yh32),'-+b',  l33,err(yh33),'-+g',  l34,err(yh34),'-+r', ...
+         l35,err(yh35),'--oy', l37,err(yh37),'--or', l38,err(yh38),'--*m', l39,err(yh39),'--oc'); 
+legend('SW-Diag', 'SW-RegInvDiag','SW-InvDiag','SW-Id', ...
+       'BT-Diag', 'BT-RegInvDiag','BT-InvDiag','BT-Id')
+% 2D Subspace converged in 1 step.
+
+%% sr1-trust
+tmp_diag2 = diag(XTrain'*XTrain);
+B01 = diag(tmp_diag2) + 1e-3*speye(p);
+[ yh40, w40 ] = sr1Trust(x0, B01, myfunc, mygrad, 2, 1e-4, 200, false, true); 
+[ yh41, w41 ] = sr1Trust(x0, speye(p), myfunc, mygrad, 2, 1e-4, 200, false, true); 
+% fast iterations!!!
+
+%% bfgsTrust
+%B01 = inv(H01);
+B03 = inv(H03); % had worked best before, so we'll stick with that.
+%B04 = inv(H04);
+
+% Cauchy
+[ yh50, w50 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 1, true, true); %breaks
+[ yh51, w51 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 2, true, true); %pos definiteness not guaranteed
+[ yh52, w52 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 1, 1e-4, 200, 3, true, true); %solid
+
+% Dogleg
+[ yh53, w53 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 1, true, true); 
+[ yh54, w54 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 2, true, true);
+[ yh55, w55 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 2, 1e-4, 200, 3, true, true);
+
+% 2D Subspace Min
+[ yh56, w56 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 1, true, true); 
+[ yh57, w57 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 2, true, true);
+[ yh58, w58 ] = bfgsTrust(x0, myfunc, mygrad, B03, H03, 3, 1e-4, 200, 3, true, true);
+
+% Skip More-Sorensen (positive definiteness constraints)
+
 

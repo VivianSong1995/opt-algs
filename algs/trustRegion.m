@@ -1,4 +1,5 @@
 function [yhist, x] = trustRegion(x0,f,g,H,method,tol,maxit,toPlot,itprint)
+% Code written by Arturo Fernandez, Winter 2015
 
 % Initialize Algorithm Parameters
 maxtrr = 8; %or 5 or min(norm(gc),10); % Maximum Trust Region Radius 
@@ -19,15 +20,16 @@ xx = 1:maxit;
 yy = repmat(f(xc),1,maxit);
 
 % Storage
-yhist = zeros(maxIter,1);
-
+yhist = zeros(maxit,1);
+yhist(1) = fc ;
+    
 if toPlot
     clf
     zz=semilogy(xx,yy,'YDataSource','yy');
 end
 
 
-fprintf('Iterate | radius | DeltaX | gradNorm  | objFunc   \n')
+fprintf('\nIterate | radius | step  | DeltaX | gradNorm  | objFunc   \n')
 % Main While Loop
 while(norm(gc) > tol && k <= maxit)
     %plotting
@@ -35,14 +37,14 @@ while(norm(gc) > tol && k <= maxit)
     
     % Obtain pk by (approx) solving the TR subproblem
     if(method == 1)    % Method 1: Cauchy Point
-    pk = cauchyPoint(gc,Hc,trrad);
+    pk = cauchyPoint(gc,Hc,trrad); stepkey = 'cachy';
     elseif(method==2)  % Method 2: Dogleg Method
     [pk,stepkey] = doglegMethod(gc,Hc,trrad);
     elseif(method==3)  % Method 3: 2D Subspace Method
     [pk,stepkey] = twoDimSubspace(gc,Hc,trrad);
     elseif(method==4)  % Method 4: Iterative More-Sorensen
     laminit = 1;
-    pk = moreSorensen(gc,Hc,trrad,laminit);
+    pk = moreSorensen(gc,Hc,trrad,laminit); stepkey = 'mo-so';
     end
     
     % potential step info
@@ -74,7 +76,7 @@ while(norm(gc) > tol && k <= maxit)
     %else xc = xc
     end
     
-    yhist(k) = fc ; % 
+    %yhist(k) = fc ; % 
     
     if toPlot
         refreshdata(zz,'caller') 
@@ -83,22 +85,16 @@ while(norm(gc) > tol && k <= maxit)
     
     % stopping rule
     if itprint; 
-        if(method==2 || method==3 )
-            %toDisp = [k, trrad, stepkey, norm(xn-xc,2), norm(gn,2), fc ];
-            fprintf('Iter %03i| %5.4f | %5s | %06.3f | %09.3f | %09.3f \n', ...
-                k, trrad, stepkey, norm(xn-xc,2), norm(gn,2), fc); %toDisp)
-        else
-            toDisp = [k, trrad, norm(xn-xc,2), norm(gn,2), fc ];
-            fprintf('Iter %03i| %5.4f | %06.3f | %09.3f | %09.3f \n', toDisp)
-        end
-        %disp([k,round(norm(xc-x_old,2),4), f(xc,1:n) ]); 
+        fprintf('Iter %03i| %5.4f | %5s | %06.3f | %09.3f | %09.3f \n', ...
+            k, trrad, stepkey, norm(xn-xc,2), norm(gn,2), fc); 
     end
     
     k = k + 1;
+    yhist(k) = fc ;
 end
 
 if k <= maxit
-    lastIter = k; 
+    lastIter = k;%-1; 
     yhist = yhist(1:lastIter);
 end
 
@@ -159,7 +155,8 @@ elseif (norm(pB,2) <= trradc)
 % Find intersection of dogleg path with boundary
 else
     pBmU = pB - pU;
-    aze = pBmU'*pBmU; bze = -2*pBmU'*pU; 
+    aze = pBmU'*pBmU; 
+    bze = -2*pBmU'*pU; 
     cze = pU_norm*pU_norm - trradc*trradc;
     alphStar = (-bze+sqrt((bze*bze) - 4*aze*cze))/(2*aze);
     pDog = pU + alphStar*pBmU;
@@ -201,14 +198,10 @@ f = gt(2) * trradc;
 
 coefs = [ -b +d , 2*(a-c+f) , 6*b , 2*(-a+c+f) , -b-d]';
 r = roots(coefs)';
-%disp(r);
 r = r(imag(r) == 0);
-%disp(r);
-%disp(Bt);
-%disp(gt);
+
 
 Z = trradc * [ (2*r)./(1+r.^2) ; (1-r.^2)./(1+r.^2)];
-%disp(Z);
 vals = 0.5*diag(Z'*Bt*Z) + Z'*gt;
 [~,I] = min(vals);
 w = Z(:,I);
@@ -216,7 +209,7 @@ pTwoD = Q*w;
 end
 end
 %
-function [pIter] = moreSorensen(g,B,trradc,lam0) %iterative
+function [pIter] = moreSorensen(g, B, trradc, lam0) %iterative
 %
 %
 %

@@ -1,4 +1,6 @@
 function [ yhist, xk ] = newton_method(x1,hess,grad,f,step,maxIter,tol,toPlot,printIters) 
+% Code written by Arturo Fernandez, Winter 2015
+
 %# Gradient of the logistic loss
 
 % ------------Initialization----------------
