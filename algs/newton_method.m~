@@ -1,0 +1,58 @@
+function [ yhist, xk ] = newton_method(x1,hess,grad,f,step,maxIter,tol,toPlot,printIters) 
+%# Gradient of the logistic loss
+
+% ------------Initialization----------------
+if ~exist('maxIter','var');   maxIter=10000;      end
+if ~exist('tol','var');   tol=1e-3;      end
+if ~exist('printIters','var');   printIters=false;      end
+
+% ------------Constant or Function----------------
+if isa(step, 'function_handle')
+    alpha = step; % f is a handle
+else
+    alpha = @(x) step; % f is not a handle
+end
+
+xk = x1; 
+xx = 1:maxIter;
+yy = repmat(f(xk),1,maxIter);
+
+%storage
+yhist = zeros(maxIter,1);
+stoppedEarly = false;
+
+if toPlot
+    clf
+%    h=plot(xx,yy,'YDataSource','yy');
+    h=semilogy(xx,yy,'YDataSource','yy');
+end
+
+for k = 1:maxIter
+    % store
+    yy(k) = f(xk);
+    xk_old = xk;
+    % descent direction
+    d =- hess(xk)\grad(xk);
+    grad_normc = norm(d,2);
+    % step size
+    ak = alpha(k);
+    % update
+    xk = xk + ak*d;
+    yhist(k) = f(xk) ;
+    
+    
+    refreshdata(h,'caller') 
+    drawnow
+    % stopping rule
+    %if printIters; disp([k,round(norm(xk-xk_old,2),4), f(xk) ]); end
+    if printIters; 
+        toDisp = [k, round(norm(xk-xk_old,2),4), grad_normc, yy(k) ];
+        fprintf('Iter %i| %06.3f | %06.3f | %08.3f \n', toDisp)
+        %disp([k,round(norm(xc-x_old,2),4), f(xc,1:n) ]); 
+    end    
+    if norm(xk-xk_old,2) <tol
+        break
+    end
+end
+iters = k;
+end
